@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-CLI-скрипты для корпоративного ящика `mail.vimos.ru` (Exchange 15.1, сборка 15.1.2507.61). Четыре самостоятельных файла в корне, без пакета и без тестов. Общие настройки EWS живут в `list_inbox_ews.py`; `send_mail_ews.py` и `save_draft_ews.py` импортируют его.
+CLI-скрипты для корпоративного ящика `mail.vimos.ru` (Exchange 15.1, сборка 15.1.2507.61). Самостоятельные файлы в корне, без пакета и без тестов. Общие настройки EWS живут в `list_inbox_ews.py`; `send_mail_ews.py`, `save_draft_ews.py` и `reply_draft_ews.py` импортируют его.
 
 Учётные данные: файл `.env` рядом со скриптами, ключи `LOGIN` и `PASSWORD`. Логин вида `ДОМЕН\alias` или полный SMTP-адрес. `.env` указан в `.gitignore` и не коммитится.
 
@@ -30,20 +30,26 @@ CLI-скрипты для корпоративного ящика `mail.vimos.ru
 
 `ItemID` — это `message.id`, закодированный через `urllib.parse.quote`. В OWA 15.1 маршрут `#path=/mail/drafts` открывает папку, а `ItemID` при `ispopout=0` выбирает письмо и открывает его формой `ReadMessageItem`.
 
+### `reply_draft_ews.py`
+
+Черновик ответа на последнее письмо `IPM.Note` во «Входящих». `Message.create_reply(...).save(account.drafts)` — это `CreateItem` / `ReplyToItem` / `SaveOnly`, без `send()`. Затем `UpdateItem` явно ставит `In-Reply-To` и `References` по RFC 5322; `ConversationId` сервер копирует из исходного письма сам (в EWS поле read-only). Текст ответа фиксированный. Получатель: `Reply-To`, иначе `From`, иначе `Sender`. Тема: `RE: ` плюс тема исходного письма.
+
+Если у письма уже есть черновик, берётся следующее входящее. Связка: `In-Reply-To` черновика совпадает с `Message-ID` письма. Если у письма нет `Message-ID`, сравнивается `ConversationId` с черновиками, у которых `In-Reply-To` заполнен. В STDOUT — та же ссылка OWA, что у `save_draft_ews.py`. В STDERR — сколько писем пропущено, на какое письмо собран черновик и значения `In-Reply-To` / `References` / `ConversationId`.
+
 ## Стек Python-модулей
 
 Скрипты рассчитаны на Python `>=3.12` и запуск через `uv run`. Сторонние пакеты объявлены в блоке PEP 723 в начале файла.
 
 | Модуль | Где | Зачем |
 | --- | --- | --- |
-| `exchangelib` `>=5.4` | `list_inbox_ews.py`, `send_mail_ews.py`, `save_draft_ews.py` | Клиент EWS: `Account`, `Configuration`, `Credentials`, `NTLM`, `Version`, `Build`, `DELEGATE`, `Message`, `Mailbox` |
+| `exchangelib` `>=5.4` | `list_inbox_ews.py`, `send_mail_ews.py`, `save_draft_ews.py`, `reply_draft_ews.py` | Клиент EWS: `Account`, `Configuration`, `Credentials`, `NTLM`, `Version`, `Build`, `DELEGATE`, `Message`, `Mailbox` |
 | `requests` `>=2.32` | `list_inbox_ews.py` | Скачать промежуточный сертификат по AIA и проверить TLS-рукопожатие с `EWS_URL` |
 | `cryptography` `>=43` | `list_inbox_ews.py` | Разобрать сертификат сервера и промежуточный сертификат (`x509`) |
 | `imaplib` | `list_inbox.py` | IMAP-сессия, `STARTTLS`, `SEARCH`, `FETCH` |
 | `email` (`policy`, `BytesParser`) | `list_inbox.py` | Разбор заголовков `From` и `Subject` |
 | `urllib.parse.quote` | `save_draft_ews.py` | Кодирование EWS ItemId в ссылке OWA |
 
-`list_inbox.py` сторонних пакетов не требует: в его блоке PEP 723 `dependencies` пустой. Три EWS-скрипта зависят от `cryptography`, `exchangelib` и `requests`.
+`list_inbox.py` сторонних пакетов не требует: в его блоке PEP 723 `dependencies` пустой. EWS-скрипты зависят от `cryptography`, `exchangelib` и `requests`.
 
 Из стандартной библиотеки также используются `argparse`, `ssl`, `socket`, `pathlib`, `datetime`, `zoneinfo`, `re` и `sys`. Импорт exchangelib отложен в `load_libraries()`, чтобы `--help` не требовал установленных пакетов.
 
@@ -54,6 +60,7 @@ uv run list_inbox.py --help
 uv run list_inbox_ews.py --last 5
 uv run send_mail_ews.py --to user@example.com --subject "Тема" --body "Текст"
 uv run save_draft_ews.py --to user@example.com --subject "Тема" --body "Текст"
+uv run reply_draft_ews.py
 ```
 
 `.env` в корне:
@@ -77,7 +84,7 @@ PASSWORD=...
 
 - `list_inbox.py` и `list_inbox_ews.py` печатают строки `отправитель — тема`.
 - `send_mail_ews.py` печатает `Отправлено: ...`.
-- `save_draft_ews.py` печатает одну ссылку OWA. Её нужно открыть в браузере, уже вошедшем в `https://mail.vimos.ru/owa/`.
+- `save_draft_ews.py` и `reply_draft_ews.py` печатают одну ссылку OWA. Её нужно открыть в браузере, уже вошедшем в `https://mail.vimos.ru/owa/`.
 
 ## Code Style
 

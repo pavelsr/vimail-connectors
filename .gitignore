@@ -23,3 +23,6 @@ htmlcov/
 
 .agents/
 .cursor/
+.goose/
+.hermes/
+skills-lock.json
