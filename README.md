@@ -10,6 +10,10 @@ uv run list_inbox_ews.py --last 10
 uv run send_mail_ews.py --to user@example.com --subject "Тема" --body "Текст"
 uv run save_draft_ews.py --to user@example.com --subject "Тема" --body "Текст"
 uv run reply_draft_ews.py
+uv run vimail.py unanswered
+uv run vimail.py draft-self
+uv run vimail.py draft-reply --text "Текст ответа"
+uv run --group dev pytest
 ```
 
 ## Скрипты
@@ -35,6 +39,23 @@ uv run reply_draft_ews.py
 ### `reply_draft_ews.py`
 
 Сохраняет **черновик ответа** на последнее входящее письмо `IPM.Note`, у которого такого черновика ещё нет. Письмо не отправляется. Текст ответа фиксированный. В STDOUT — ссылка OWA на черновик (как у `save_draft_ews.py`).
+
+### `vimail.py`
+
+Единая CLI-утилита:
+
+```bash
+uv run vimail.py unanswered
+uv run vimail.py unanswered --day 2026-11-10
+uv run vimail.py unanswered --until 2026-11-01
+uv run vimail.py unanswered --from 2026-11-01 --to 2026-11-05
+uv run vimail.py unanswered --days-ago 3
+uv run vimail.py --format json unanswered
+uv run vimail.py draft-self --text "..."
+uv run vimail.py draft-reply --text "..."
+```
+
+Неотвеченное — входящее `IPM.Note` без черновика ответа. Если черновик уже был создан, в STDERR будет warning.
 
 Скрипт явно выставляет заголовки треда:
 

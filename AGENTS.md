@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-CLI-скрипты для корпоративного ящика `mail.vimos.ru` (Exchange 15.1, сборка 15.1.2507.61). Самостоятельные файлы в корне, без пакета и без тестов. Общие настройки EWS живут в `list_inbox_ews.py`; `send_mail_ews.py`, `save_draft_ews.py` и `reply_draft_ews.py` импортируют его.
+CLI-скрипты для корпоративного ящика `mail.vimos.ru` (Exchange 15.1, сборка 15.1.2507.61). Самостоятельные файлы в корне. Общие настройки EWS живут в `list_inbox_ews.py`; `send_mail_ews.py`, `save_draft_ews.py`, `reply_draft_ews.py` и `vimail.py` импортируют его. Единая CLI-утилита — `vimail.py`; автотесты — в `tests/`.
 
 Учётные данные: файл `.env` рядом со скриптами, ключи `LOGIN` и `PASSWORD`. Логин вида `ДОМЕН\alias` или полный SMTP-адрес. `.env` указан в `.gitignore` и не коммитится.
 
@@ -36,6 +36,18 @@ CLI-скрипты для корпоративного ящика `mail.vimos.ru
 
 Если у письма уже есть черновик, берётся следующее входящее. Связка: `In-Reply-To` черновика совпадает с `Message-ID` письма. Если у письма нет `Message-ID`, сравнивается `ConversationId` с черновиками, у которых `In-Reply-To` заполнен. В STDOUT — та же ссылка OWA, что у `save_draft_ews.py`. В STDERR — сколько писем пропущено, на какое письмо собран черновик и значения `In-Reply-To` / `References` / `ConversationId`.
 
+### `vimail.py`
+
+Единая CLI-утилита поверх EWS-хелперов. Подкоманды:
+
+| Команда | Назначение |
+| --- | --- |
+| `unanswered` | неотвеченные входящие (нет черновика ответа) |
+| `draft-self` | черновик самому себе |
+| `draft-reply` | черновик ответа на последнее неотвеченное |
+
+Фильтры `unanswered`: без аргументов — все; `--day`; `--until` (с даты по сегодня); `--from`/`--to`; `--days-ago N`. Глобально: `--format text|json`. Текст черновиков: `--text` (дефолт «Это черновик, созданный утилитой vimail»). Если черновик уже есть — warning в STDERR (и в JSON-поле `warning`).
+
 ## Стек Python-модулей
 
 Скрипты рассчитаны на Python `>=3.12` и запуск через `uv run`. Сторонние пакеты объявлены в блоке PEP 723 в начале файла.
@@ -61,6 +73,11 @@ uv run list_inbox_ews.py --last 5
 uv run send_mail_ews.py --to user@example.com --subject "Тема" --body "Текст"
 uv run save_draft_ews.py --to user@example.com --subject "Тема" --body "Текст"
 uv run reply_draft_ews.py
+uv run vimail.py --help
+uv run vimail.py unanswered --format json
+uv run vimail.py draft-self
+uv run vimail.py draft-reply --text "Текст"
+uv run --group dev pytest
 ```
 
 `.env` в корне:
@@ -80,11 +97,12 @@ PASSWORD=...
 
 ## Testing Instructions
 
-Автоматических тестов нет. Проверка — запуск против живого ящика:
+Юнит-тесты: `uv run --group dev pytest`. Живой ящик:
 
 - `list_inbox.py` и `list_inbox_ews.py` печатают строки `отправитель — тема`.
 - `send_mail_ews.py` печатает `Отправлено: ...`.
-- `save_draft_ews.py` и `reply_draft_ews.py` печатают одну ссылку OWA. Её нужно открыть в браузере, уже вошедшем в `https://mail.vimos.ru/owa/`.
+- `save_draft_ews.py`, `reply_draft_ews.py` и `vimail.py draft-*` печатают ссылку OWA. Её нужно открыть в браузере, уже вошедшем в `https://mail.vimos.ru/owa/`.
+- `vimail.py unanswered` печатает неотвеченные; с `--format json` — объект `{"mails": [...]}`.
 
 ## Code Style
 

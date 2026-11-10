@@ -1,0 +1,19 @@
+[project]
+name = "vimail-connectors"
+version = "0.1.0"
+description = "CLI-скрипты и утилита vimail для mail.vimos.ru"
+requires-python = ">=3.12"
+dependencies = [
+  "cryptography>=43",
+  "exchangelib>=5.4",
+  "requests>=2.32",
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
